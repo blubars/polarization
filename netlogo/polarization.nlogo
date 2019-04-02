@@ -12,6 +12,8 @@ undirected-link-breed [ friendships friendship ]
 globals [
   ;threshold ;belief updating thresh, from input control
   ;population ;graph size. from input control
+  ;link-probability  ;Erdos-Reni network probability.
+                     ;0 -> no links, 1 -> all-to-all network
   ;media-1, media-2: enable-disable media sources.
   ;media-1-bias, media-2-bias: media beliefs
 ]
@@ -23,7 +25,7 @@ to Setup
   ;ask turtle 0 [ create-links-with other turtles ]
 
   ; generate 100 people
-  nw:generate-random people friendships population 0.15 [
+  nw:generate-random people friendships population link-probability [
     ;set color red
     set belief random-float 1.00001 ; hack to get around [0,1) code
     set thresh threshold
@@ -41,14 +43,11 @@ to Setup
 
   ; set context to whole graph (people + media)
   nw:set-context turtles links
-  ;show map sort nw:get-context
-
-  Layout
 
   reset-ticks
 end
 
-to Go [ continue? ]
+to Go
   ask people [ update-belief ]
   tick
   if all? people [ converged? ] [
@@ -58,7 +57,6 @@ to Go [ continue? ]
 end
 
 to setup-media-src [ media-color belief-level ]
-  show media-color
   create-media 1 [
     set color media-color
     set size 2
@@ -75,9 +73,9 @@ to Layout
 end
 
 to-report get-belief-color [ belief-value ]
-  ; 0 -> red, 1 -> blue
-  let temp_red (1 - belief-value) * 255
-  let temp_blue belief-value * 255
+  ; 0 -> blue, 1 -> red
+  let temp_red belief-value * 255
+  let temp_blue (1 - belief-value) * 255
   report rgb temp_red 0 temp_blue
 end
 
@@ -108,7 +106,7 @@ to update-belief
   set belief total / num_neighbors
   set color get-belief-color belief
   ;show list old-belief belief
-  set converged? (abs (prev_belief - belief) <= 0.002)
+  set converged? (abs (prev_belief - belief) <= 0.001)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -161,7 +159,7 @@ BUTTON
 98
 89
 Step
-Go false
+Go
 NIL
 1
 T
@@ -195,7 +193,7 @@ BUTTON
 167
 90
 Go
-Go true
+Go
 T
 1
 T
@@ -208,14 +206,14 @@ NIL
 
 SLIDER
 21
-156
+188
 194
-189
+221
 threshold
 threshold
 0
 1
-0.18
+0.25
 0.01
 1
 NIL
@@ -229,9 +227,9 @@ SLIDER
 population
 population
 0
-200
-120.0
-10
+1000
+200.0
+20
 1
 NIL
 HORIZONTAL
@@ -243,7 +241,7 @@ SWITCH
 329
 media-1
 media-1
-1
+0
 1
 -1000
 
@@ -277,7 +275,7 @@ media-1-bias
 media-1-bias
 0
 1
-0.0
+0.3
 0.05
 1
 NIL
@@ -292,7 +290,7 @@ media-2-bias
 media-2-bias
 0
 1
-1.0
+0.95
 0.05
 1
 NIL
@@ -334,6 +332,41 @@ false
 PENS
 "default" 1.0 0 -10141563 true "" "plot mean [belief] of people"
 "reference" 1.0 0 -4539718 true "" "plot 0.5"
+
+TEXTBOX
+675
+330
+956
+399
+To look into: \nOne media source at 0.5 (and threshold ~0.15) seems to throw the avg off center, unexpectedly. Why? Model -> two groups, but one is often pulled into center while other remains on fringe.
+8
+0.0
+1
+
+SLIDER
+21
+152
+194
+186
+link-probability
+link-probability
+0
+1
+0.01
+0.01
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+676
+390
+991
+450
+Pop:500, link_p:4%, thresh:0.25, 1 meda (0.95) ->\ntypically one group, slightly right of center. sometimes 2 groups, sometimes 1 group at 0.95.\nIf 2 media, 0.4 & 0.95, get one group at 0.4\n -- first align everyone, then pull left
+8
+0.0
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

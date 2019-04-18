@@ -1,0 +1,30 @@
+<experiments>
+  <experiment name="test1" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>sort [belief] of people</metric>
+    <enumeratedValueSet variable="link-probability">
+      <value value="0.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="media-2-bias">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="media-1-bias">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="population">
+      <value value="100"/>
+      <value value="300"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="media-1">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="threshold">
+      <value value="0.15"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="media-2">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>

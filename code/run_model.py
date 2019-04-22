@@ -20,9 +20,11 @@ experiment_dict = {
 import sys
 import subprocess
 import argparse
+import csv
 from pathlib import Path
 from xml.etree import ElementTree as ET
 import pandas as pd
+from stats import Metrics
 
 
 # GLOBALS :/
@@ -40,7 +42,7 @@ class Experiment:
         - output_path: directory to store results """
     def __init__(self, model, name=None, output_path=OUTPUT_PATH_DEFAULT, setup_file=None):
         self.model = Path(model).resolve()
-        self.output_dir = Path(output_path).resolve()
+        self.output_dir = Path(output_path)
         self.setup_file = Path(setup_file).resolve() if setup_file else None 
         self.setup_file = setup_file   
         self.output_file = None
@@ -54,7 +56,9 @@ class Experiment:
             self.output_dir.mkdir(parents=True)
 
 
-    def analyze_results(self, csv_file=None):
+    def parse_results(self, csv_file):
+        """ returns a pandas dataframe with parsed results """
+        # resolve CSV file name
         if csv_file is None:
             if self.output_file:
                 csv_file = self.output_file
@@ -62,11 +66,83 @@ class Experiment:
                 print("ERROR: analyze needs results csv file")
                 return
 
-        # pandas won't work out-of-box b/c of weird format. 
-        # need to parse by hand.
-        #df = pd.read_csv(csv_file)
-        #print(df.head())
-        pass
+        # do parsing!
+        valid_rows = {
+            "[run number]":int,
+            "link-probability":float,
+            "media-2-bias":float,
+            "media-1-bias":float,
+            "population":int,
+            "media-1":bool,
+            "threshold":float,
+            "media-2":bool,
+            "[steps]":int
+        }
+
+        output_dict = {}
+        with open(csv_file) as csv_file:
+            final_values_row = 0
+            for row in csv.reader(csv_file, delimiter=','):
+                if len(row) > 0:
+                    # experimental settings rows
+                    key = row[0]
+                    if key in valid_rows:
+                        name = key.strip("[]").replace(" ", "-")
+                        values=[]
+                        for value in row[1:]:
+                            # possible types are bool, int, float.
+                            # convert to float if possible.
+                            convert = valid_rows[key]
+                            values.append(convert(value))
+
+                        output_dict[name]=values
+
+                    # experimental results row
+                    elif final_values_row > 0:
+                        if final_values_row == 2:
+                            final_vals=[]
+                            for values in row[1:]:
+                                #print(values)
+                                values=values.strip("[]").split(' ')
+                                float_values=[float(value) for value in values]
+                                #print(values)
+                                final_vals.append(float_values)
+                            output_dict['final_values']=final_vals
+                        final_values_row += 1
+
+                elif not final_values_row:
+                    # skip two garbage rows btw settings and results
+                    final_values_row=1
+
+        df = pd.DataFrame(output_dict)
+        df.head()
+
+    def analyze_results(self, csv_file=None):
+        if csv_file is None:
+            if self.output_file:
+                csv_file = self.output_file
+            else:
+                print("ERROR: analyze needs results csv file")
+                return
+        df = self.parse_results(csv_file)
+
+        results = {}
+        for ix,run in df.iterrows():
+            # each row in the dataframe is one run, with a given
+            # set of settings. analyze it.
+            beliefs = run["final_values"]
+            analyzer = Metrics(beliefs)
+            metrics = analyzer.run_all()
+            # aggregate into list of values for each metric
+            for metric,val in metrics.items():
+                if metric in results:
+                    results[metric].append(val)
+                else:
+                    results[metric] = [val]
+            # plot? 
+            # analyzer.plot()
+        df_result = pd.DataFrame(results)
+        return pd.concat([df.drop("final_values"), df_result], axis=1, ignore_index=True)
 
 
     def generate_setup_file(self, name, settings, repetitions, path=None):
@@ -157,7 +233,7 @@ def main():
     parser.add_argument("--model_path", help="Path to netlogo model file")
     args = parser.parse_args()
     if args.nlogo_path:
-        NLOGO_PATH_DEFAULT = args.nlogo_path
+        NLOGO_PATH_DEFAULT = Path(args.nlogo_path).resolve()
 
     model_arg = Path(args.model_path) if args.model_path else MODEL_PATH_DEFAULT
     setup_arg = Path(args.setup_file)

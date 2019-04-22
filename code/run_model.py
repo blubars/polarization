@@ -84,7 +84,7 @@ class Experiment:
         }
 
         output_dict = {}
-        with open(csv_file) as csv_file:
+        with open(str(csv_file)) as csv_file:
             final_values_row = 0
             for row in csv.reader(csv_file, delimiter=','):
                 if len(row) > 0:
@@ -219,14 +219,14 @@ class Experiment:
         return pd.concat([df.drop("final_values", axis=1), df_result], axis=1)
 
 
-    def generate_setup_file(self, name, settings, repetitions, path=None):
+    def generate_setup_file(self, settings, repetitions, path=None):
         """ generate a netlogo experimental setup XML file """
         if not path:
             path = self.output_dir
 
         # set up experiment netlogo global values
         exp_attribs = {
-            "name": name,
+            "name": self.name,
             "repetitions": str(repetitions),
             "runMetricsEveryStep": "false"
         }
@@ -253,7 +253,7 @@ class Experiment:
         tree_root.append(exp_root)
 
         # write experiment xml file to path
-        outpath = Path(path, name + ".xml")
+        outpath = Path(path, self.name + ".xml")
         print("Writing settings to file: {}".format(str(outpath)))
         et = ET.ElementTree(tree_root)
         et.write(str(outpath))
@@ -272,9 +272,9 @@ class Experiment:
         if not isinstance(setup_file, Path):
             setup_file = Path(setup_file).resolve()
         if not output_file:
-            output_file = Path(self.output_dir, self.name + "_nlogo_out.csv").resolve(strict=False)
+            output_file = Path(self.output_dir, self.name + "_nlogo_out.csv")
         if not isinstance(output_file, Path):
-            output_file = Path(output_file).resolve(strict=False)
+            output_file = Path(output_file)
 
         print("Running experiment:\n  * input file: {}\n  * output file: {}" \
             .format(setup_file, output_file))
@@ -341,7 +341,7 @@ if __name__ == "__main__":
     }
 
     E = Experiment(paths.MODEL_PATH_DEFAULT, name="test_2", output_path=paths.OUTPUT_PATH_DEFAULT)
-    E.generate_setup_file("test_gen_2", settings=exp_2_settings, repetitions=5)
+    E.generate_setup_file(settings=exp_2_settings, repetitions=5)
     E.run_experiment()
     E.analyze_results()
 """

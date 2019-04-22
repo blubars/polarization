@@ -17,6 +17,7 @@ experiment_dict = {
 }
 """
 
+# system modules
 import sys
 import subprocess
 import argparse
@@ -26,15 +27,15 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 import pandas as pd
 
+# local modules
+import paths
 import plots
 from stats import Metrics
 
 
-# GLOBALS :/
-NLOGO_PATH_DEFAULT = Path(Path.home(), "NetLogo/netlogo-headless.sh")
-MODEL_PATH_DEFAULT = Path("../netlogo/polarization.nlogo")
-OUTPUT_PATH_DEFAULT = Path("../experiments/")
-
+#global paths.NLOGO_PATH_DEFAULT
+#global paths.MODEL_PATH_DEFAULT
+#global paths.OUTPUT_PATH_DEFAULT
 
 class Experiment:
     """ set up, run, and analyze experiment.
@@ -43,7 +44,7 @@ class Experiment:
         - name: name of experiment (used to name files)
         - setup_file: netlogo experimental XML file 
         - output_path: directory to store results """
-    def __init__(self, model, name=None, output_path=OUTPUT_PATH_DEFAULT, setup_file=None):
+    def __init__(self, model, name=None, output_path=paths.OUTPUT_PATH_DEFAULT, setup_file=None):
         self.model = Path(model).resolve()
         self.output_dir = Path(output_path)
         self.setup_file = Path(setup_file).resolve() if setup_file else None
@@ -131,29 +132,43 @@ class Experiment:
         if x.dtype == "object":
             a = np.array([_ for _ in x])
             return np.mean(a, axis=0).ravel().tolist()
-        elif x.dtype == "bool":
-            return x.values[0]
         else:
-            return np.mean(x)
+            # return first value
+            return x.values[0]
 
 
-    def aggregate_results(self, results=None, plot_distributions=False):
-        """ if runs use the same settings, combine them """
-        if not results:
-            results = self.analyze_results()
+    def aggregate_results(self, results, plot_distributions=False):
+        """ if runs use the same settings, combine them (mean, std, count) """
         # make a new index to combine off of, combo of all settings.
-        cols = ["link-probability", "media-2-bias", "media-1-bias",
+        setting_cols = ["link-probability", "media-2-bias", "media-1-bias",
                 "population", "media-1", "threshold", "media-2"]
-        settings = results.loc[:,cols]
+        numeric_cols = ["steps", "mean", "num_groups", "size_parity", "spread", 
+                "coverage", "dispersion", "group_consensus"]
+        settings = results.loc[:,setting_cols]
         keys = []
         for ix,row in settings.iterrows():
             key = "".join([str(cell) + '_' for cell in row])
             keys.append(key)
         df = pd.concat([results, pd.DataFrame(keys, columns=["key"])], axis=1)
 
-        grouped = df.drop("run-number", axis=1).groupby(by="key")
-        #groups: grouped.groups
-        results = grouped.agg(self.aggregate_group)
+        # group by new index, run aggregation functions
+        grouped = df.groupby(by="key")
+        group_settings = grouped[setting_cols].agg("first")
+        group_metrics = grouped[numeric_cols].agg(["mean", "std"])
+        hist_agg_func = lambda x: np.mean(np.array([_ for _ in x]), axis=0).ravel().tolist()
+        group_hist = grouped["histogram"].agg(hist_agg_func)
+        group_size = grouped["run-number"].agg("size").rename("support")
+        results = pd.concat([group_settings, group_metrics, group_hist, group_size], axis=1)
+
+        # flatten column names
+        new_cols = []
+        for ci, col in enumerate(results.columns):
+            if not isinstance(col, str):
+                col = col[0] + '_' + col[1]
+            new_cols.append(col) 
+        results.columns = new_cols
+
+        # plot grouped results, if desired
         if plot_distributions:
             for ig,group in results.iterrows():
                 plot_name = self.name + "_{}_agg_distr.pdf".format(ig)
@@ -166,6 +181,7 @@ class Experiment:
         return results
 
     def analyze_results(self, csv_file=None, plot_distributions=False):
+        """ parse CSV file and collect polarization metrics on each run """
         if csv_file is None:
             if self.output_file:
                 csv_file = self.output_file
@@ -244,7 +260,7 @@ class Experiment:
         self.setup_file = outpath
 
 
-    def run_experiment(self, setup_file=None, output_file=None):
+    def run_experiment(self, setup_file=None, output_file=None, nlogo_headless=paths.NLOGO_PATH_DEFAULT):
         """ run experiment. returns 0 for failure, 1 for success """
         success = True
         if not setup_file:
@@ -270,8 +286,7 @@ class Experiment:
             return success
 
         # run the netlogo simulation
-        print(str(NLOGO_PATH_DEFAULT))
-        nlogo_args = [ str(NLOGO_PATH_DEFAULT), 
+        nlogo_args = [ str(nlogo_headless), 
             "--model", str(self.model),
             "--setup-file", str(setup_file),
             "--spreadsheet", str(output_file) ]
@@ -298,18 +313,17 @@ def main():
     parser.add_argument("--model_path", help="Path to netlogo model file")
     args = parser.parse_args()
     if args.nlogo_path:
-        global NLOGO_PATH_DEFAULT
-        NLOGO_PATH_DEFAULT = Path(args.nlogo_path, "netlogo-headless.sh").resolve()
+        paths.NLOGO_PATH_DEFAULT = Path(args.nlogo_path, "netlogo-headless.sh").resolve()
 
-    model_arg = Path(args.model_path) if args.model_path else MODEL_PATH_DEFAULT
+    model_arg = Path(args.model_path) if args.model_path else paths.MODEL_PATH_DEFAULT
     setup_arg = Path(args.setup_file)
-    output_arg = Path(args.output_path) if args.output_path else OUTPUT_PATH_DEFAULT
+    output_arg = Path(args.output_path) if args.output_path else paths.OUTPUT_PATH_DEFAULT
 
     E = Experiment(model_arg, name="test_1", output_path=output_arg, setup_file=setup_arg)
     E.run_experiment()
-    results = E.analyze_results(plot_distributions=True)
+    results = E.analyze_results(plot_distributions=False)
     E.write_results(results)
-    agg_results = E.aggregate_results(plot_distributions=True)
+    agg_results = E.aggregate_results(results, plot_distributions=False)
     E.write_results(agg_results, name=E.name + "_agg_results.csv")
 
 if __name__ == "__main__":
@@ -326,7 +340,7 @@ if __name__ == "__main__":
         "media-2-bias": [0.5],
     }
 
-    E = Experiment(MODEL_PATH_DEFAULT, name="test_2", output_path=OUTPUT_PATH_DEFAULT)
+    E = Experiment(paths.MODEL_PATH_DEFAULT, name="test_2", output_path=paths.OUTPUT_PATH_DEFAULT)
     E.generate_setup_file("test_gen_2", settings=exp_2_settings, repetitions=5)
     E.run_experiment()
     E.analyze_results()

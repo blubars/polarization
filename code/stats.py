@@ -1,9 +1,9 @@
 import numpy as np
-from scipy.stats import entropy
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+from scipy.stats import entropy
 from collections import namedtuple
+import plots
 
 Group = namedtuple("Group", ["min", "max", "count"])
 
@@ -18,11 +18,17 @@ class Metrics:
         self.num_bins=bins
         self.get_groups(self.num_bins)
 
+    def bin(self, num_bins=20):
+        counts, bins = np.histogram(self.data, bins=num_bins)
+        return counts
+
     def spread(self):
         """ also called range... highest - lowest.
             drawback: doesn't consider if the most extreme are simply 
             outliers, or are representative. """
-        return max(self.data) - min(self.data)
+        mh = max(self.data)
+        ml = min(self.data)
+        return (mh - ml)
 
     def mean(self):
         return np.mean(self.data)
@@ -44,16 +50,7 @@ class Metrics:
             return np.std(self.data)
 
     def plot(self, num_bins=20, title="", xlabel="", name=None, kde=False):
-        fig = plt.figure(0)
-        bins = np.linspace(0, 1, num_bins+1)
-        ax = sns.distplot(self.data, bins=bins, rug=True, kde=kde)
-        ax.set_title(title)
-        ax.set_xlabel(xlabel)
-        if name:
-            plt.savefig(name)
-        else:
-            plt.show()
-        fig.close(0)
+        plots.plot_dist(self.data, num_bins=num_bins, title=title, xlabel=xlabel, name=name, kde=kde)
 
     def get_groups(self, num_bins=20, data_range=[0, 1]):
         """ find endogenously-defined groups.
@@ -164,10 +161,10 @@ class Metrics:
         metrics["coverage"] = self.coverage(num_bins=self.num_bins)
         metrics["num_groups"] = self.num_groups()
         metrics["dispersion"] = self.dispersion()
-        metrics["distinctness"] = self.distinctness()
+        #metrics["distinctness"] = self.distinctness()
         metrics["size_parity"] = self.size_parity()
         metrics["group_consensus"] = self.group_consensus()
+        metrics["histogram"] = self.bin(num_bins=self.num_bins)
         return metrics
 
 
-# distinctness, divergence, group concensus

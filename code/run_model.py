@@ -63,7 +63,7 @@ class Experiment:
             if self.output_file:
                 csv_file = self.output_file
             else:
-                print("ERROR: analyze needs results csv file")
+                print("  * ERROR: analyze needs results csv file")
                 return
 
         # do parsing!
@@ -102,10 +102,8 @@ class Experiment:
                         if final_values_row == 2:
                             final_vals=[]
                             for values in row[1:]:
-                                #print(values)
                                 values=values.strip("[]").split(' ')
                                 float_values=[float(value) for value in values]
-                                #print(values)
                                 final_vals.append(float_values)
                             output_dict['final_values']=final_vals
                         final_values_row += 1
@@ -113,9 +111,15 @@ class Experiment:
                 elif not final_values_row:
                     # skip two garbage rows btw settings and results
                     final_values_row=1
+        return pd.DataFrame(output_dict)
 
-        df = pd.DataFrame(output_dict)
-        df.head()
+    def write_results(self, results_df, output_dir=None):
+        """ write dataframe to csv """
+        if not output_dir:
+            output_dir = self.output_dir
+        output_file = output_dir / (self.name + "_results.csv")
+        results_df.to_csv(path_or_buf=output_file, index=False)
+        print("  * Results written to {}".format(output_file))
 
     def analyze_results(self, csv_file=None):
         if csv_file is None:
@@ -126,6 +130,7 @@ class Experiment:
                 return
         df = self.parse_results(csv_file)
 
+        print("  Results:")
         results = {}
         for ix,run in df.iterrows():
             # each row in the dataframe is one run, with a given
@@ -133,6 +138,9 @@ class Experiment:
             beliefs = run["final_values"]
             analyzer = Metrics(beliefs)
             metrics = analyzer.run_all()
+            print("   [{}]: G({},{}) --> num_groups:{}, spread={}" \
+                .format(ix, run["population"], run["threshold"], 
+                        metrics["num_groups"], metrics["coverage"]))
             # aggregate into list of values for each metric
             for metric,val in metrics.items():
                 if metric in results:
@@ -140,9 +148,11 @@ class Experiment:
                 else:
                     results[metric] = [val]
             # plot? 
-            # analyzer.plot()
+            plot_name = self.name + str(ix) + ".pdf"
+            plot_title = "Final Distribution\n(Pop:{}, thresh:{})".format(run["population"], run["threshold"])
+            #analyzer.plot(title=plot_title, name=plot_name)
         df_result = pd.DataFrame(results)
-        return pd.concat([df.drop("final_values"), df_result], axis=1, ignore_index=True)
+        return pd.concat([df.drop("final_values", axis=1), df_result], axis=1) 
 
 
     def generate_setup_file(self, name, settings, repetitions, path=None):
@@ -199,13 +209,20 @@ class Experiment:
         if not isinstance(setup_file, Path):
             setup_file = Path(setup_file).resolve()
         if not output_file:
-            output_file = Path(self.output_dir, self.name + "_nlogo_out.csv").resolve()
+            output_file = Path(self.output_dir, self.name + "_nlogo_out.csv").resolve(strict=False)
         if not isinstance(output_file, Path):
-            output_file = Path(output_file).resolve()
+            output_file = Path(output_file).resolve(strict=False)
+
+        print("Running experiment:\n  * input file: {}\n  * output file: {}" \
+            .format(setup_file, output_file))
+
+        # check if output file already exists. don't re-run if it does!
+        if output_file.exists():
+            print("  * NOTE: Result of experiment {} already run, skipping.\n    -- see file: {}".format(self.name, output_file))
+            self.output_file = output_file
+            return success
 
         # run the netlogo simulation
-        print("Running experiment:\n  input file: {}\n  output file: {}\n" \
-            .format(setup_file, output_file))
         nlogo_args = [ str(NLOGO_PATH_DEFAULT), 
             "--model", str(self.model),
             "--setup-file", str(setup_file),
@@ -214,7 +231,7 @@ class Experiment:
 
         # check that it worked
         if res.returncode != 0:
-            print("Error, netlogo run failed")
+            print("  * Error, netlogo run failed")
             print(res)
             output_file = None
             success = False
@@ -241,8 +258,8 @@ def main():
 
     E = Experiment(model_arg, name="test_1", output_path=output_arg, setup_file=setup_arg)
     E.run_experiment()
-    E.analyze_results()
-
+    results = E.analyze_results()
+    E.write_results(results)
 
 if __name__ == "__main__":
     main()

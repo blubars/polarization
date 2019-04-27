@@ -180,7 +180,7 @@ class Experiment:
                 plots.plot_bar(group["histogram"], bins, title=plot_title, name=str(plot_path / plot_name))
         return results
 
-    def analyze_results(self, csv_file=None, plot_distributions=False):
+    def analyze_results(self, csv_file=None, plot_distributions=False, bins=20):
         """ parse CSV file and collect polarization metrics on each run """
         if csv_file is None:
             if self.output_file:
@@ -196,7 +196,7 @@ class Experiment:
             # each row in the dataframe is one run, with a given
             # set of settings. analyze it.
             beliefs = run["final_values"]
-            analyzer = Metrics(beliefs)
+            analyzer = Metrics(beliefs, bins=bins)
             metrics = analyzer.run_all()
             print("   [{}]: G({},{}) --> num_groups:{}, spread={}" \
                 .format(ix, run["population"], run["threshold"], 

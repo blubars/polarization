@@ -27,7 +27,7 @@ def plot_2d_grid(x, y, z, xlabel, ylabel, title, fname=None):
 
     X, Y = np.meshgrid(x, y)
     #plt.imshow(z, extent=(min(x), max(x), max(y), min(y)),interpolation='none')
-    plt.pcolormesh(X, Y, z)
+    plt.pcolormesh(X, Y, z) #, shading="gouraud")
     plt.colorbar()
     ax.set_title(title)
     ax.set_xlabel(var_to_title(xlabel))

@@ -19,7 +19,8 @@ class Metrics:
         self.get_groups(self.num_bins)
 
     def bin(self, num_bins=20):
-        counts, bins = np.histogram(self.data, bins=num_bins)
+        bins = np.linspace(0,1,num_bins+1)
+        counts, bins = np.histogram(self.data, bins=bins)
         return counts
 
     def spread(self):

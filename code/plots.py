@@ -2,7 +2,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import pdb
 
 def plot_3d(x, y, z, xlabel, ylabel, zlabel, title, fname):
     fig = plt.figure(0)
@@ -72,9 +72,9 @@ def vars_to_title(x, y, z=None):
 
 def vars_to_fname(x, y, z=None):
     if z:
-        return "2d_sweep_" + x + "_vs_" + y + "_vs_" + z + ".pdf"
+        return "2d_sweep_" + x + "_vs_" + y + "_vs_" + z + ".png"
     else:
-        return "sweep_" + x + "_vs_" + y + ".pdf"
+        return "sweep_" + x + "_vs_" + y + ".png"
 
 
 def var_to_title(s):
@@ -94,11 +94,20 @@ def plot_line(data, x, y, title, fname=None):
     plt.close(0)
 
 
-def plot_bar(data, bins, title="", xlabel="", name=None):
+def plot_bar(data, bins, title="", xlabel="", name=None, norm=None):
     fig = plt.figure(0)
-    ax = sns.barplot(x=bins[0:20], y=data, color="b")
+    #pdb.set_trace()
+    #plt.bar(x=bins[0:20], height=data, align="edge", width=0.05)
+    if norm:
+        height = np.array(data) / norm
+    else:
+        height = data
+    plt.bar(x=bins[0:20], height=height, width=0.05, align="edge")
+    ax = plt.gca()
+    #ax = sns.barplot(x=np.around(bins[0:20], 2), y=data) #, color="b")
     ax.set_title(title)
     ax.set_xlabel(xlabel)
+    #ax.set_xticks([0,0.2,0.4,0.6,0.8,1])
     if name:
         plt.savefig(name)
     else:

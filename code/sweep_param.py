@@ -16,7 +16,6 @@ NUM_REPETITIONS = 10    # repetitions per setting
 metrics = ["mean", "num_groups", "size_parity", "spread", "dispersion"]
 #           "coverage"]
 
-
 def sweep_two_params(p1, p2, settings):
     # update paths in paths.py
     nlogo_path = paths.NLOGO_PATH_DEFAULT
@@ -36,7 +35,8 @@ def sweep_two_params(p1, p2, settings):
     E.run_experiment()
     results = E.analyze_results(plot_distributions=False)
     E.write_results(results)
-    #agg_res = E.aggregate_results(results, plot_distributions=False)
+    agg_res = E.aggregate_results(results, plot_distributions=True)
+    E.write_results(agg_res, name=E.name + "_agg_results.csv")
 
     # put aggregate data into plottable form.
     x = values1.copy()
@@ -77,8 +77,10 @@ def sweep_param(param, values, settings):
     #E = Experiment(model_path, name="test_1", setup_file=setup_file)
     E.generate_setup_file(settings=settings, repetitions=NUM_REPETITIONS)
     E.run_experiment()
-    results = E.analyze_results(bins=50)
+    results = E.analyze_results(bins=20)
     E.write_results(results)
+    agg_res = E.aggregate_results(results, plot_distributions=True)
+    E.write_results(agg_res, name=E.name + "_agg_results.csv")
 
     for metric in metrics:
         plot_name = plots.vars_to_fname(param, metric)
@@ -88,20 +90,25 @@ def sweep_param(param, values, settings):
 
 if __name__ == "__main__":
     settings = {
-        "link-probability": [0.10],
+        "link-probability": [0.15],
         "population": [500],
-        "threshold": [0.15],
-        "media-1": ["false"],
-        "media-2": ["false"],
+        "threshold": [0.185],
+        "media-1": ["true"],
+        "media-2": ["true"],
         "media-1-bias": [0.5],
         "media-2-bias": [0.5],
     }
-    #sweep_param("threshold", [10, 20, 50, 100, 300, 500, 1000], settings)
+    #sweep_param("threshold", [0.01,0.025,0.05,0.075,0.1,0.125,0.15,0.17,0.185,0.2,0.3,0.4,0.5], settings)
+    #sweep_param("media-1-bias", [0.0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1], settings)
 
     # params to sweep. 
     # Note: max range is the max # on the plot list, so will not plot 
     # final param in step list if equal to max range.
-    p1 = { "param":"threshold", "steps":[0.01, 0.02, 0.05, 0.075, 0.09, 0.1, 0.125, 0.15, 0.175, 0.2, 0.3, 0.4, 0.5], "range":[0,1] }
-    p2 = { "param":"population", "steps":[100, 200, 300, 500], "range":[100,1000] }
+    #p1 = { "param":"threshold", "steps":[0.01, 0.02, 0.04, 0.05, 0.075, 0.09, 0.1, 0.12, 0.135, 0.15, 0.165, 0.17, 0.185, 0.2, 0.3, 0.5], "range":[0,0.5] }
+    #p1 = { "param":"threshold", "steps":[0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.3, 0.4], "range":[0.05,0.5] }
+    #p1 = { "param":"link-probability", "steps":[0.005, 0.01, 0.02, 0.03, 0.05, 0.075, 0.1, 0.125, 0.15, 0.175, 0.2, 0.3, 0.4, 0.5, 0.7, 0.9], "range":[0,1] }
+    #p2 = { "param":"population", "steps":[100, 200, 300, 400, 500], "range":[100,600] }
+    p1 = { "param":"media-1-bias", "steps":[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], "range":[0, 1] }
+    p2 = { "param":"media-2-bias", "steps":[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], "range":[0, 1] }
     sweep_two_params(p1, p2, settings)
 

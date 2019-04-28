@@ -97,6 +97,8 @@ class Experiment:
                             # possible types are bool, int, float.
                             # convert to float if possible.
                             convert = valid_rows[key]
+                            if convert is bool:
+                                convert = lambda x: True if x == "true" else False
                             values.append(convert(value))
                         output_dict[name]=values
 
@@ -153,7 +155,7 @@ class Experiment:
 
         # group by new index, run aggregation functions
         grouped = df.groupby(by="key")
-        group_settings = grouped[setting_cols].agg("first")
+        group_settings = grouped[setting_cols + ["avg_degree"]].agg("first")
         group_metrics = grouped[numeric_cols].agg(["mean", "std"])
         hist_agg_func = lambda x: np.mean(np.array([_ for _ in x]), axis=0).ravel().tolist()
         group_hist = grouped["histogram"].agg(hist_agg_func)
@@ -171,13 +173,15 @@ class Experiment:
         # plot grouped results, if desired
         if plot_distributions:
             for ig,group in results.iterrows():
-                plot_name = self.name + "_{}_agg_distr.pdf".format(ig)
+                plot_name = self.name + "_{}_agg_distr.png".format(ig)
                 plot_path = Path(self.output_dir, "plots")
                 if not plot_path.is_dir():
                     plot_path.mkdir()
-                plot_title = "Final Distribution\n(Pop:{}, thresh:{})".format(group["population"], group["threshold"])
+                #plot_title = "Final Belief PDF\n(thresh:{}, media:{})".format(group["threshold"], group["media-1-bias"])
+                plot_title = "Final Belief PDF\n(thresh:{}, avg # groups:{})".format(group["threshold"], round(float(group["num_groups_mean"]), 2))
                 bins = np.linspace(0, 1, 21)
-                plots.plot_bar(group["histogram"], bins, title=plot_title, name=str(plot_path / plot_name))
+                plots.plot_bar(group["histogram"], bins, title=plot_title, name=str(plot_path / plot_name), norm=group["population"])
+                #plots.plot_dist(group["histogram"], num_bins=20, title=plot_title, name=str(plot_path / plot_name))
         return results
 
     def analyze_results(self, csv_file=None, plot_distributions=False, bins=20):
@@ -189,6 +193,8 @@ class Experiment:
                 print("ERROR: analyze needs results csv file")
                 return
         df = self.parse_results(csv_file)
+        # add avg degree for given settings.
+        df['avg_degree'] = (df['population'] - 1) * df['link-probability']
 
         print("  Results:")
         results = {}
